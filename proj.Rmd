@@ -3,3 +3,33 @@ title: "proj"
 output: html_document
 ---
 
+```{r echo = FALSE}
+
+library(googledrive)
+
+# Scaricare il file da Google Drive
+drive_download(as_id("1UBt1xj_Wr_ZuZGBDC8Y0sVXsE1STGvUH"), 
+               path = "liver_cancer_predictions.csv", 
+               overwrite = TRUE)
+
+# Leggere il CSV in R
+my_data <- read.csv("liver_cancer_predictions.csv", stringsAsFactors = FALSE)
+head(my_data)  # Mostra le prime righe del dataset
+
+dim(my_data)  # Returns (rows, columns)
+
+```
+```{r EDA echo = FALSE}
+library(dplyr)
+colnames(my_data)
+
+summary(my_data)
+
+typeof(my_data$Alcohol_Consumption)
+
+
+my_data <- my_data %>%
+  mutate(across(c(Gender, Smoking_Status, Alcohol_Consumption, Hepatitis_B_Status, 
+                  Hepatitis_C_Status, Obesity, Diabetes, Rural_or_Urban, Seafood_Consumption, Herbal_Medicine_Use, Healthcare_Access, Screening_Availability, Treatment_Availability, Liver_Transplant_Access, Ethnicity, Preventive_Care, Prediction), factor))
+
+```
