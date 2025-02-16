@@ -52,3 +52,4 @@ rsconnect/
 #every csv file
 *.zip
 
+.DS_Store

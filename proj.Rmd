@@ -13,6 +13,7 @@ dim(my_data)  # Returns (rows, columns)
 
 ```
 ```{r, EDA, echo = FALSE}
+install.packages("dplyr")
 library(dplyr)
 colnames(my_data)
 
@@ -68,7 +69,8 @@ shapiro_results <- lapply(continuous_var, function(var) {
 })
 print(shapiro_results) # again, our data are far away from being normal
 ```
-```{r, Log, echo = FALSE}
+
+```{r, Log_1, echo = FALSE}
 # Controlla se il pacchetto ggpubr è installato, e se non lo è, lo installa
 if (!require(ggpubr)) {
   install.packages("ggpubr")
@@ -78,3 +80,10 @@ library(ggpubr)
 ggqqplot(my_data$Incidence_Rate)
 
 ```
+
+```{r, categorical_eda, echo=FALSE}
+
+
+
+```
+
