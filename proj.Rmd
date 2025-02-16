@@ -24,25 +24,60 @@ typeof(my_data$Alcohol_Consumption)
 my_data <- my_data %>%
   mutate(across(c(Gender, Smoking_Status, Alcohol_Consumption, Hepatitis_B_Status, 
                   Hepatitis_C_Status, Obesity, Diabetes, Rural_or_Urban, Seafood_Consumption, Herbal_Medicine_Use, Healthcare_Access, Screening_Availability, Treatment_Availability, Liver_Transplant_Access, Ethnicity, Preventive_Care, Prediction), factor))
-summary(my_data)  # check if every character columns is actually transformed into                         
- # categorical
+summary(my_data)  # check if every character columns is actually transformed into                     # categorical
 
 
 ```
-```{r, Continuous_variables_EDA, echo = FALSE}
+```{r, univariate_analysis, echo = FALSE}
 
+if (!require(ggplot2)) {
+  install.packages("ggplot2")
+  library(ggplot2)}
+
+if (!require(tidyr)) {
+  install.packages("tidyr")
+  library(tidyr)}
+
+if (!require(dplyr)) {
+  install.packages("dplyr")
+  library(dplyr)
+}
+
+# Set up the plotting area to see all plots at once
+par(mfrow = c(3, 2))
 
 # Create a vector of variable names
-continuous_var <- c("Incidence_Rate", "Age", "Population", "Survival_Rate", "Cost_of_Treatment")
+continuous_var <- c("Incidence_Rate", "Age", "Survival_Rate", "Cost_of_Treatment")
+print(my_data[continuous_var])
 
+# Pivot the data to long format
+data_long <- my_data %>%
+pivot_longer(
+  cols = all_of(continuous_var),
+  names_to = "variable",
+  values_to = "value"
+)
+
+# Create histograms for each variable using facet_wrap
+ggplot(data_long, aes(x = value)) +
+  geom_histogram(bins = 7, fill = "blue", color = "white" ) +
+  facet_wrap(~ variable, scales = "free") +
+  labs(title = "Histograms for Selected Variables",
+       x = "Value",
+       y = "Count")
+
+print(my_data$Population)
+```
+
+```{r, qqplots&Shapiro, echo = FALSE}
 
 # check if there are null values
 sapply(my_data[continuous_var], function(x) sum(is.na(x)))
 sapply(my_data[continuous_var], class)
 
 
-# Optionally, set up the plotting area to see all plots at once
-#par(mfrow = c(3, 2))  # Adjust the layout as needed
+# Set up the plotting area to see all plots at once
+par(mfrow = c(3, 2))  # Adjust the layout as needed
 
 # Loop through each variable, generating a QQ plot and adding a QQ line
 lapply(continuous_var, function(var) {
@@ -58,7 +93,7 @@ shapiro_results <- lapply(continuous_var, function(var) {
 print(shapiro_results)
 
 ```
-```{r, Log, echo = FALSE}
+```{r, Log-Shapiro, echo = FALSE}
 # Since the Shapiro test suggests that our data are far away from making us accept Ho: data are normally distributed, let's try computing the log:
 shapiro_results <- lapply(continuous_var, function(var) {
   # sample 5000 observations
@@ -68,13 +103,15 @@ shapiro_results <- lapply(continuous_var, function(var) {
 })
 print(shapiro_results) # again, our data are far away from being normal
 ```
-```{r, Log, echo = FALSE}
-# Controlla se il pacchetto ggpubr è installato, e se non lo è, lo installa
+```{r, Log1, echo = FALSE}
+#Check if ggpubr is installed and if it is not, install it
 if (!require(ggpubr)) {
   install.packages("ggpubr")
   library(ggpubr)
 }
 library(ggpubr)
-ggqqplot(my_data$Incidence_Rate)
+ggqqplot(my_data$Incidence_Rate) 
 
 ```
+
+dghsd
