@@ -6,53 +6,42 @@ output: html_document
 ```{r, echo = FALSE}
 
 # Leggere il CSV in R
-my_data <- read.csv("liver_cancer_predictions.csv", stringsAsFactors = FALSE)
-head(my_data)  # Mostra le prime righe del dataset
-
-dim(my_data)  # Returns (rows, columns)
+data <- read.csv("diabetes.csv", stringsAsFactors = FALSE)
+head(data)  # Mostra le prime righe del dataset
+dim(data)  # Returns (rows, columns)
 
 ```
-```{r, EDA, echo = FALSE}
+```{r, TransformingDataTypes, echo = FALSE}
 library(dplyr)
-colnames(my_data)
+colnames(data)
+summary(data)  
+head(data)
 
-summary(my_data)
+```
+```{r, Fixing_data_types, echo = FALSE}
+library(tidyr)
 
-typeof(my_data$Alcohol_Consumption)
-
-
-my_data <- my_data %>%
-  mutate(across(c(Gender, Smoking_Status, Alcohol_Consumption, Hepatitis_B_Status, 
-                  Hepatitis_C_Status, Obesity, Diabetes, Rural_or_Urban, Seafood_Consumption, Herbal_Medicine_Use, Healthcare_Access, Screening_Availability, Treatment_Availability, Liver_Transplant_Access, Ethnicity, Preventive_Care, Prediction), factor))
-summary(my_data)  # check if every character columns is actually transformed into                         
- # categorical
-
+class(data)
 
 ```
 ```{r, Continuous_variables_EDA, echo = FALSE}
 
-
-# Create a vector of variable names
-continuous_var <- c("Incidence_Rate", "Age", "Population", "Survival_Rate", "Cost_of_Treatment")
-
-
 # check if there are null values
-sapply(my_data[continuous_var], function(x) sum(is.na(x)))
-sapply(my_data[continuous_var], class)
-
+sapply(data[continuous_var], function(x) sum(is.na(x)))
+sapply(data[continuous_var], class)
 
 # Optionally, set up the plotting area to see all plots at once
-#par(mfrow = c(3, 2))  # Adjust the layout as needed
+par(mfrow = c(3, 2))  # Adjust the layout as needed
 
 # Loop through each variable, generating a QQ plot and adding a QQ line
 lapply(continuous_var, function(var) {
-  qqnorm(my_data[[var]], main = var)
-  qqline(my_data[[var]])
+  qqnorm(data[[var]], main = var)
+  qqline(data[[var]])
 })
 # since Shapiro test requires a max of 5000 observations, we can randomly sample them
 shapiro_results <- lapply(continuous_var, function(var) {
   # sample 5000 observations
-  data_sample <- sample(my_data[[var]], 5000)
+  data_sample <- sample(data[[var]], 5000)
   shapiro.test(data_sample)
 })
 print(shapiro_results)
@@ -62,7 +51,7 @@ print(shapiro_results)
 # Since the Shapiro test suggests that our data are far away from making us accept Ho: data are normally distributed, let's try computing the log:
 shapiro_results <- lapply(continuous_var, function(var) {
   # sample 5000 observations
-  data_sample <- sample(my_data[[var]], 5000)
+  data_sample <- sample(data[[var]], 5000)
   log_data_sample <- log(data_sample) 
   shapiro.test(log_data_sample)
 })
@@ -75,6 +64,6 @@ if (!require(ggpubr)) {
   library(ggpubr)
 }
 library(ggpubr)
-ggqqplot(my_data$Incidence_Rate)
+ggqqplot(data$Age, ylab = "Age", xlab = "Theoretical Quantiles", main = "QQ plot of Age")
 
 ```
