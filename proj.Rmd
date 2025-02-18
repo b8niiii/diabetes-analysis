@@ -57,7 +57,7 @@ shapiro_results <- lapply(continuous_var, function(var) {
 })
 print(shapiro_results) # again, our data are far away from being normal
 ```
-```{r, Log, echo = FALSE}
+```{r, Log1, echo = FALSE}
 # Controlla se il pacchetto ggpubr è installato, e se non lo è, lo installa
 if (!require(ggpubr)) {
   install.packages("ggpubr")
