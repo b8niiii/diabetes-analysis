@@ -3,9 +3,11 @@
 library(dplyr)
 library(corrplot)
 library(car)
+library(factoextra)
+library(gridExtra)
 
 # Reading the data, basic transformation, EDA
-
+par(mar = c(2, 2, 2, 2),par(mfrow = c(3,9)))
 diabetes_data <- read.csv("diabetes.csv", stringsAsFactors = FALSE)
 summary(diabetes_data)
 head(diabetes_data)
@@ -14,7 +16,7 @@ str(diabetes_data)
 sapply(diabetes_data, function(x) sum(is.na(x)))
 sapply(diabetes_data, class)
 
-par(mfrow = c(3, 9))
+
 
 target <- diabetes_data
 lapply(names(target), function(var) {
@@ -65,7 +67,7 @@ shapiro_df_log
 
 cor_matrix <- cor(diab_continuous_data)
 
-par(mar = c(4, 4, 1, 1), cex = 0.9)
+par(mar = c(1, 1, 1, 1), mfrow = c(1,1), cex = 0.9)
 corrplot(cor_matrix, method = 'color', 
          col = colorRampPalette(c('blue', 'white', 'red'))(200), 
          addCoef.col = 'black', 
@@ -95,37 +97,67 @@ vif_df <- data.frame(
 
 vif_df$vif <- ifelse(vif_df$vif > 10, 'High VIF (Issue)', 'OK')
 
-vif_dif
+vif_df
 
 # PCA
 
-diab_cont_matrix <- as.matrix(diab_continuous_data)
-pca <- prcomp(diab_cont_matrix, scale = TRUE)
-plot(pca$x[,1], pca$x[,2], xlab = 'PC 1', ylab = 'PC 2')
- 
-pca.var
+diab_cont_matrix <- as.matrix(diab_continuous_data) # Convert to matrix
+pca <- prcomp(diab_cont_matrix, scale = TRUE) # scale = TRUE for scaling the data
+# the output of prcomp is a prcomp object; i.e. a list with several components:
+# $dev is the standard deviation of each principal component, $rotation is the matrix of eigenvectors, aka loadings, 
+#$center is the center used for scaling, $scale is the scaling used, 
+#$x is the matrix of scores, aka the principal components
+plot(pca$x[,1], pca$x[,2], xlab = 'PC 1', ylab = 'PC 2') # Plot the first two principal components
+print(pca$x[,*])
+par(mfrow = c(3,1))
+fviz1 <- fviz_pca_var(
+  pca,
+  col.var = "contrib", # Color by variables
+  col.ind = "contrib", # Color by individuals
+  gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), # Color gradient
+  repel = TRUE     # Avoid text overlapping
+  )
+fviz2 <-fviz_pca_var( # same but with the third and  fourth PC as x and y axes.
+  axes = c(3,4), 
+  pca,
+  col.var = "contrib", # Color by variables
+  col.ind = "contrib", # Color by individuals
+  gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), # Color gradient
+  repel = TRUE     # Avoid text overlapping
+)
+fviz3 <-fviz_pca_var( # same but with the fifth and sixth PC as x and y axes.
+  axes = c(5,6), 
+  pca,
+  col.var = "contrib", # Color by variables
+  col.ind = "contrib", # Color by individuals
+  gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), # Color gradient
+  repel = TRUE     # Avoid text overlapping
+)
+dev.new()
+grid.arrange(fviz1, fviz2, fviz3, ncol= 3) # Arrange the plots in a grid
+pca.var # Variance of each principal component
 
-pca.var <- pca$sdev^2
-pca.var.per <- round(pca.var/sum(pca.var) * 100, 1)
+pca.var <- pca$sdev^2 # Variance of each principal component
+pca.var.per <- round(pca.var/sum(pca.var) * 100, 1) # Percentage of variance of each principal component
 
-barplot(pca.var.per, main = 'Scree Plot', xlab = 'Principal Component', ylab = 'Percent Variation',
-        names.arg = paste('PC', 1:length(pca.var.per)))
+barplot(pca.var.per, main = 'Scree Plot', xlab = 'Principal Component', ylab = 'Percent Variation', 
+        names.arg = paste('PC', 1:length(pca.var.per))) # Scree plot
 
-pca.var <- pca$sdev^2
-pca.var.per <- round(pca.var / sum(pca.var) * 100, 1)
+pca.var <- pca$sdev^2 # Variance of each principal component
+pca.var.per <- round(pca.var / sum(pca.var) * 100, 1) # Percentage of variance of each principal component
 
-cumvar <- cumsum(pca.var.per)
+cumvar <- cumsum(pca.var.per) # Cumulative variance
 
-residvar <- 100 - cumvar
+residvar <- 100 - cumvar # Residual variance
 
-plot(1:length(residvar), residvar, type = 'b',
+plot(1:length(residvar), residvar, type = 'b', # Elbow plot
      xlab = 'Number of Principal Components',
      ylab = 'Residual Variance (%)',
      main = 'Elbow Plot for Residual Variance')
 
 # pca.data <- data.frame(Sample=rownames(pca$x),
 #                        X=pca$x[,1],
-#                        Y=pca$x[,2])
+#             http://127.0.0.1:38225/graphics/c0ec00c7-95bb-40c9-aac6-86656b290994.png           Y=pca$x[,2])
 # 
 # ggplot(data=pca.data, aes(x=X, y=Y, label=Sample)) +
 #   geom_text() +
@@ -138,6 +170,6 @@ loadings <- pca$rotation
 loadings_df <- as.data.frame(loadings)
 loadings_df
 
-pca.data
 
  
+
