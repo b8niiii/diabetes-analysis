@@ -277,15 +277,15 @@ lines(cluster_num, wcss, col = 'black')
 points(cluster_num, wcss, col = 'lightblue', pch = 19) 
 
 # Highlight the optimal number of clusters on the plot
-optimal_k <- 5
+optimal_k <- 3
 points(optimal_k, wcss[optimal_k], col = '#D22B2B', pch = 19, cex = 2)  # Highlight the optimal k
 text(optimal_k, wcss[optimal_k], labels = paste('Optimal k =', optimal_k), pos = 3, col = '#D22B2B')
 
-kmeans_result <- kmeans(pca_reduced, centers = 5, nstart = 50)# Add cluster assignments to pca.data.summary
+kmeans_result <- kmeans(pca_reduced, centers = 3, nstart = 50)# Add cluster assignments to pca.data.summary
 pca.data.summary$Cluster <- as.factor(kmeans_result$cluster)
 
-cluster_colors <- c('yellow', 'blue', 'green', 'purple', 'orange')
-
+# cluster_colors <- c('yellow', 'blue', 'green', 'purple', 'orange')
+cluster_colors <- c('yellow', 'blue', 'green')
 # Update the biplots with proper color mapping
 biplot_pc1v2 <- biplot_pc1v2 +
   geom_point(data = pca.data.summary, aes(x = X, y = Y, color = Cluster), alpha = 0.6) +
