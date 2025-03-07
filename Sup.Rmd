@@ -1,0 +1,638 @@
+---
+title: "proj"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+# Caricamento dei pacchetti necessari
+library(tidyverse)  # Per manipolazione dati e grafici
+library(caret) # Per la suddivisione train-test e metriche
+library(ggplot2)
+library(ggpubr)
+library(plyr)
+update.packages("tidyverse")
+update.packages("caret")
+update.packages("ggplot2")
+update.packages("ggpubr")
+update.packages("plyr")
+# Importazione dataset
+diabetes <- read.csv("diabetes.csv")
+str(diabetes)
+```
+```{r}
+diabetes 
+sum(diabetes$Insulin == 0) # Number of 0 values in Insulin
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+#elimino zeri in alcune variabili
+diabetes <- diabetes[diabetes$Insulin != 0, ]
+diabetes <- diabetes[diabetes$Glucose != 0, ] # delete 0 values in Glucose
+
+
+qqnorm(diabetes$Insulin)
+diabetes
+```
+
+
+```{r}
+diabetes$loginsulin=log(diabetes$Insulin)
+lower_bound <- quantile(diabetes$loginsulin, 0.01)
+upper_bound <- quantile(diabetes$loginsulin, 0.99) # delete outliers
+
+# Filter the data to delete outliers
+diabetes <- diabetes %>%
+  filter(loginsulin >= lower_bound & loginsulin <= upper_bound)
+
+# Create loginsulin variable
+qqnorm(diabetes$loginsulin)
+
+shapiro.test(diabetes$loginsulin) # Accept H0 = normal distribution
+```
+
+```{r}
+str(diabetes)
+
+qqnorm(diabetes$Glucose)
+diabetes$logglucose=log(diabetes$Glucose)
+qqnorm(diabetes$logglucose)
+shapiro.test(diabetes$logglucose) # Reject H0 = not normal distribution
+```
+
+
+```{r}
+diabetes <- diabetes[diabetes$SkinThickness != 0, ] #elimino prov. zeri in Thikness
+diabetes <- diabetes[diabetes$BMI != 0, ]
+
+qqnorm(diabetes$DiabetesPedigreeFunction)
+diabetes$logdiabetespedigree=log(diabetes$DiabetesPedigreeFunction)
+qqnorm
+qqnorm(diabetes$logdiabetespedigree)
+shapiro.test(diabetes$logdiabetespedigree) #Accept H0 = normal distribution
+```
+
+
+
+```{r, Fixing_data_types, echo = FALSE}
+library(tidyr)
+update.packages("tidyr")
+class(diabetes)
+data
+max_value <- max(diabetes$Insulin)
+print(max_value)
+summary(diabetes$Insulin)
+qqnorm(diabetes$Insulin)
+```
+
+```{r}
+diabetes <- diabetes[order(-diabetes$Insulin), ]
+diabetes
+```
+
+
+
+```{r}
+qqnorm(diabetes$BloodPressure)
+qqnorm(log(diabetes$BloodPressure))
+shapiro.test(diabetes$BloodPressure) # Reject H0 = not normal distribution
+```
+
+```{r}
+diabetes <- diabetes[order(diabetes$BMI), ]
+diabetes
+```
+
+```{r}
+
+qqnorm(diabetes$BMI)
+qqnorm(log(diabetes$BMI))
+shapiro.test(log(diabetes$BMI)) # reject H0 = not normal distribution
+diabetes$logBMI=log(diabetes$BMI)
+```
+
+
+
+
+```{r}
+qqnorm(diabetes$Age)
+
+shapiro.test(diabetes$Age) # reject H0 = not normal distribution
+```
+
+```{r}
+qqnorm(diabetes$SkinThickness)
+
+shapiro.test(diabetes$SkinThickness) # reject H0 = not normal distribution
+
+```
+
+
+
+```{r}
+str(diabetes)
+# We can remove the original variables now substituting them with the log-transformed ones
+diabetes$Insulin <- NULL
+diabetes$Glucose <- NULL
+diabetes$DiabetesPedigreeFunction <- NULL
+diabetes$BMI <- NULL
+str(diabetes)
+```
+
+
+
+
+
+
+
+```{r}
+library(dplyr)
+mydata<-diabetes %>% select(Pregnancies, logglucose, BloodPressure, SkinThickness, loginsulin, logBMI, logdiabetespedigree, Age, Outcome)
+res<-cor(mydata) 
+round(res, 2)
+str(mydata)
+```
+
+
+```{r, warning=FALSE}
+install.packages("car") # This scatter plot probably is useless, imo the ones below are better
+library(car)
+scatterplotMatrix(mydata, regLine = TRUE)
+```
+
+```{r}
+col<- colorRampPalette(c("blue", "white", "red"))(20)
+heatmap(x = res, col = col, symm = TRUE, Colv = NA, Rowv = NA)
+```
+
+
+
+```{r}
+library(corrplot)
+corrplot(res, type = "upper", 
+         tl.col = "black", tl.srt = 45)
+```
+
+
+```{r}
+install.packages("PerformanceAnalytics") # This one is also useless
+library("PerformanceAnalytics")
+chart.Correlation(mydata, histogram=TRUE, pch=19)
+```
+
+
+
+
+
+```{r}
+mod <- glm(Outcome~.,data=mydata, family = "binomial") # Logistic regression
+vif(mod)
+sqrt(vif(mod))>2 # Check for multicollinearity
+library(car)
+```
+```{r}
+library(leaps)
+update.packages("leaps")
+regfit.full=regsubsets(Outcome~.,data=diabetes, nvmax=8) ## default is 8
+reg.summary=summary(regfit.full)
+names(reg.summary)
+```
+
+```{r}
+plot(reg.summary$cp,xlab="Number of Variables",ylab="Cp")
+which.min(reg.summary$cp)
+points(5,reg.summary$cp[5],pch=20,col="red") # Number of variables of the best model - > 5
+```
+
+```{r}
+set.seed(11)
+folds=sample(rep(1:10,length=nrow(mydata)))
+folds
+```
+```{r}
+table(folds)
+```
+
+
+```{r}
+set.seed(123) 
+# Divide in training and test set
+trainIndex <- createDataPartition(mydata$Outcome, p = 0.8, list = FALSE)
+train_data <- mydata[trainIndex, ]
+test_data <- mydata[-trainIndex, ]
+```
+
+
+```{r}
+library(glmnet)
+x=model.matrix(Outcome~.,data=train_data)
+y=train_data$Outcome
+fit.ridge=glmnet(x,y,alpha=0)
+plot(fit.ridge,xvar="lambda",label=TRUE)
+```
+
+```{r}
+library(glmnet)
+x=model.matrix(Outcome~.,data=train_data)
+y=train_data$Outcome
+fit.ridge=glmnet(x,y,alpha=0)
+plot(fit.ridge,xvar="lambda",label=TRUE)
+```
+
+```{r}
+cv.ridge=cv.glmnet(x,y,alpha=0)
+plot(cv.ridge)
+```
+
+```{r}
+coef(cv.ridge)
+```
+
+```{r}
+fit.lasso=glmnet(x,y)
+plot(fit.lasso,xvar="lambda",label=TRUE)
+
+# Esegui la regressione Lasso con cross-validation
+cv.lasso = cv.glmnet(x, y, alpha = 1)
+
+# Visualizza il grafico della cross-validation
+plot(cv.lasso)
+
+# Ottieni i coefficienti per il valore ottimale di lambda
+coefficients = coef(cv.lasso, s = "lambda.min")
+
+# Visualizza i coefficienti
+print(coefficients)
+```
+
+```{r}
+cv.lasso=cv.glmnet(x,y)
+plot(cv.lasso)
+```
+
+```{r}
+coef(cv.lasso)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+### Residuals analysis
+```{r}
+str(mydata)
+```
+
+
+
+# Metodo 1.0
+
+
+
+
+```{r}
+ 
+library(leaps)  
+reg_fit.bwd=regsubsets(Outcome~.,data=mydata, method="forward", nvmax=8) # Forward selection
+summary(reg_fit.bwd)
+```
+
+
+```{r}
+plot(reg_fit.bwd,scale="Cp")
+```
+
+```{r}
+summary(reg_fit.bwd)$cp  # Cp values
+which.min(summary(reg_fit.bwd)$cp)  # Index of the minimum Cp value
+coef(reg_fit.bwd, which.min(summary(reg_fit.bwd)$cp))  # Selected variables
+```
+
+### We tried to build 3 different models with 4, 5 and 6 variables, respectively. We will then compare them to see which one is the best.
+```{r}
+model5 <- lm(Outcome ~ Pregnancies + Age + logglucose + logdiabetespedigree + logBMI, data = train_data)
+summary(model5) # 5 variables
+```
+```{r}
+model6 <- lm(Outcome ~ BloodPressure + Pregnancies + Age + logglucose + logdiabetespedigree + logBMI, data = train_data)
+summary(model6) # 6 regressori
+```
+
+```{r}
+model4 <- glm(Outcome ~ Age + logglucose + logdiabetespedigree + logBMI, data = train_data, family = binomial)
+summary(model4) # 4 regressori
+```
+
+
+
+```{r}
+# This isn't the right residuals analysis because we are working with a binomial
+library(ggplot2)
+library(ggfortify)
+autoplot(model5)
+ggqqplot(model5$residuals)
+```
+```{r, 5 reg}
+plot(residuals(model5, type = "pearson")) # Residui di Pearson -> We expect them to be as random as possible
+plot(residuals(model5, type = "deviance")) # Residui della devianza -> We expect them to be as random as possible
+library(car)
+library(pROC)
+predictions <- predict(model5, newdata = train_data, type = "response")
+roc_curve <- roc(train_data$Outcome, predictions, print.auc = TRUE, plot = TRUE)  # Value between 0 and 1: the closer to 1, the better the model
+```
+
+```{r, 4 reg}
+plot(residuals(model4, type = "pearson")) # Residui di Pearson
+plot(residuals(model4, type = "deviance")) # Residui della devianza
+library(car)
+library(pROC)
+predictions <- predict(model4, newdata = mydata, type = "response")
+roc_curve <- roc(mydata$Outcome, predictions, print.auc = TRUE, plot = TRUE)  # Valore tra 0 e 1: più vicino a 1, meglio è il modello.
+```
+
+
+```{r, 6 reg}
+plot(residuals(model6, type = "pearson")) # Residui di Pearson
+plot(residuals(model6, type = "deviance")) # Residui della devianza
+library(car)
+library(pROC)
+predictions <- predict(model6, newdata = mydata, type = "response")
+roc_curve <- roc(mydata$Outcome, predictions, print.auc = TRUE, plot = TRUE)  # Valore tra 0 e 1: più vicino a 1, meglio è il modello.
+```
+### We can see that the most efficient model is the one with 5 regressors
+
+
+
+```{r}
+library(caret)
+library(pROC)
+library(ggplot2)
+# Use Iris dataset and convert to a binary classification problem
+mod <- glm(Outcome ~ ., data = train_data, family = binomial)
+
+# predictions
+pred_probs <- predict(mod, test_data, type = "response")  # Cambiato model5 → mod
+
+# Convert probabilities to classes
+pred_class <- ifelse(pred_probs > 0.5, 1, 0)
+
+# Convert both to factors with the same levels
+table(Predicted = pred_class, Actual = test_data$Outcome)
+
+# Confusion matrix
+conf_matrix <- confusionMatrix(as.factor(pred_class), as.factor(test_data$Outcome))
+print(conf_matrix)
+
+conf_matrix_table <- as.data.frame(conf_matrix$table)
+colnames(conf_matrix_table) <- c("Predicted", "Actual", "Frequency")
+
+ggplot(conf_matrix_table, aes(x = Actual, y = Predicted, fill = Frequency)) + 
+  scale_fill_gradient(low = "white", high = "red") + 
+  geom_text(aes(label = Frequency), color = "black", size = 5) +
+  theme_minimal() + 
+  labs(title = "Confusion Matrix", x = "Actual Class", y = "Predicted Class")
+  
+```
+
+
+
+
+```{r}
+library(ggplot2)
+
+p24 <- ggplot(mydata, aes(x = logglucose, fill = factor(Outcome))) +
+  geom_histogram(binwidth = 0.025) +
+  labs(x = "logglucose",
+       title = "Glucose rate by Outcome")
+p24
+```
+```{r}
+levels(predictions)
+levels(test_data$Outcome)
+predictions <- factor(predictions, levels = c("0", "1"))
+test_data$Outcome <- factor(test_data$Outcome, levels = c("0", "1"))
+table(test_data$Outcome)
+# Verifica la struttura del dataset di test
+str(test_data)
+
+# Verifica la distribuzione delle classi nel dataset di test
+table(test_data$Outcome)
+predictions <- predict(rf_model, newdata = test_data, type = "response")
+print(predictions)
+```
+
+
+
+```{r}
+# In this part we made the decision trees and we got also the indexes %InchMSE and IncNodePurity which measure the importance of the variables
+library("rpart")
+library("rpart.plot")
+library(party)
+library("partykit")
+ptree<-ctree(Outcome ~ ., data=train_data, control = ctree_control(mincriterion=0.01, minsplit=0, minbucket=0))
+plot(ptree)
+rtree<-rpart(Outcome ~ ., data=train_data, cp=0.0001)
+printcp(rtree)
+rpart.plot(rtree)
+
+
+
+
+# Caricare il pacchetto necessario
+install.packages("randomForest")
+library(randomForest)
+
+# Creare il modello di Random Forest
+rf_model <- randomForest(Outcome ~ ., data = train_data, ntree = 500, mtry = 3, importance = TRUE)
+
+# Visualizzare il modello e i risultati
+print(rf_model)
+
+# Visualizzare l'importanza delle variabili
+importance(rf_model)
+
+# Tracciare un grafico dell'importanza delle variabili
+varImpPlot(rf_model)
+
+# Fare previsioni
+predictions <- predict(rf_model, newdata = test_data, type = "response")# Creare una matrice di confusione
+# Se le predizioni sono probabilità, trasformale in classi
+
+predictions <- ifelse(predictions > 0.5, 1, 0)
+library(caret)
+conf_matrix1 <- confusionMatrix(as.factor(predictions), as.factor(test_data$Outcome))
+print(conf_matrix1)
+```
+
+
+
+```{r}
+# Other decision trees
+str(test_data)
+library("partykit")
+library("party")
+tree2<-ctree(Outcome~.,train_data)
+plot(tree2,cgp = gpar(fontsize = 4))
+```
+
+```{r}
+# Other decision trees
+
+library(tree)
+library(caret)
+library(dplyr)
+library(MASS)
+
+tree.model=tree(Outcome~., data = train_data)
+summary(tree.model)
+
+
+plot(tree.model)
+text(tree.model, pretty = 0, cex = 0.8)  
+```
+
+
+
+
+### Varie regressioni (4,5,6 variabili)
+### Vedere bene train e test
+### CV (Opzionale)
+
+
+
+
+```{r}
+# Cross validation and RMSE R2 and MAE
+
+library(caret)
+
+# Creare la strategia di Cross Validation (K = 10)
+ctrl <- trainControl(method = "cv", number = 10)  # 10-Fold CV
+
+# Allenare il modello logistico con CV
+model_cv <- train(Outcome ~ Pregnancies + Age + logglucose + logdiabetespedigree + logBMI, data = mydata, 
+                  method = "glm", family = binomial, 
+                  trControl = ctrl)
+
+# Mostrare i risultati
+print(model_cv)
+
+# LOOCV invece di K-Fold
+ctrl_loocv <- trainControl(method = "LOOCV")
+
+# Addestrare il modello con LOOCV
+model_loocv <- train(Outcome ~ Pregnancies + Age + logglucose + logdiabetespedigree + logBMI, data = mydata, 
+                     method = "glm", family = binomial, 
+                     trControl = ctrl_loocv)
+
+# Mostrare risultati
+print(model_loocv)
+
+# Accuracy media sui folds
+mean(model_cv$resample$Accuracy)
+
+# Controllare le metriche nei vari folds
+model_cv$resample
+
+```
+
+
+
+```{r, vediamo il modello e lo valutiamo}
+plot(model5)
+varImp(model5)
+
+library(caret)
+
+# Previsioni (probabilità)
+pred_probs <- predict(model5, newdata = test_data, type = "response")
+
+# Convertire probabilità in classi (0/1)
+predictions <- ifelse(pred_probs > 0.5, 1, 0)
+
+# Convertire entrambi in fattori con gli stessi livelli
+predictions <- factor(predictions, levels = c(0, 1))
+test_data$Outcome <- factor(test_data$Outcome, levels = c(0, 1))
+
+# Matrice di confusione corretta
+conf_mat <- confusionMatrix(data = predictions, reference = test_data$Outcome)
+print(conf_mat)
+conf_mat$byClass
+conf_mat$overall
+conf_mat$table
+```
+```{r, phi}
+# Phi index, to evaluate the model (Slide 1 of De Corato)
+tbl <- conf_mat$table
+TN <- tbl[1,1]
+FN <- tbl[1,2]
+FP <- tbl[2,1]
+TP <- tbl[2,2]
+
+phi <- ((TP * TN) - (FP * FN)) / 
+       sqrt((TP + FP) * (TP + FN) * 
+            (TN + FP) * (TN + FN))
+
+phi
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
