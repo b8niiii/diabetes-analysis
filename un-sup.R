@@ -10,6 +10,7 @@ library(gridExtra)
 library(plotly)
 library(cluster)
 library(FactoMineR)
+library(tidyr)
 
 # Reading the data, basic transformation, EDA
 diabetes_data <- read.csv('diabetes.csv', stringsAsFactors = FALSE)
@@ -281,23 +282,36 @@ optimal_k <- 3
 points(optimal_k, wcss[optimal_k], col = '#D22B2B', pch = 19, cex = 2)  # Highlight the optimal k
 text(optimal_k, wcss[optimal_k], labels = paste('Optimal k =', optimal_k), pos = 3, col = '#D22B2B')
 
-kmeans_result <- kmeans(pca_reduced, centers = 3, nstart = 50)# Add cluster assignments to pca.data.summary
+kmeans_result <- kmeans(pca_reduced, centers = 3, nstart = 50) # Add cluster assignments to pca.data.summary
 pca.data.summary$Cluster <- as.factor(kmeans_result$cluster)
 
-# cluster_colors <- c('yellow', 'blue', 'green', 'purple', 'orange')
-cluster_colors <- c('yellow', 'blue', 'green')
+cluster_colors <- c('orange', 'blue', 'green')
+
 # Update the biplots with proper color mapping
 biplot_pc1v2 <- biplot_pc1v2 +
-  geom_point(data = pca.data.summary, aes(x = X, y = Y, color = Cluster), alpha = 0.6) +
-  scale_color_manual(values = cluster_colors)
+  geom_point(data = pca.data.summary, aes(x = X, y = Y, color = Cluster), alpha = 0.2) +
+  scale_color_manual(values = cluster_colors) +
+  geom_segment(data = pca.loadings, aes(x = 0, y = 0, xend = X, yend = Y), 
+               arrow = arrow(length = unit(0.2, 'cm')), color = '#D22B2B') +
+  geom_text(data = pca.loadings, aes(x = X, y = Y, label = variable), 
+            size = 3.5, color = '#D22B2B', vjust = 1.5) 
 
 biplot_pc2v3 <- biplot_pc2v3 +
-  geom_point(data = pca.data.summary, aes(x = Y, y = Z, color = Cluster), alpha = 0.6) +
-  scale_color_manual(values = cluster_colors)
+  geom_point(data = pca.data.summary, aes(x = Y, y = Z, color = Cluster), alpha = 0.2) +
+  scale_color_manual(values = cluster_colors) +
+  geom_segment(data = pca.loadings, aes(x = 0, y = 0, xend = Y, yend = Z), 
+               arrow = arrow(length = unit(0.2, 'cm')), color = '#D22B2B') +
+  geom_text(data = pca.loadings, aes(x = Y, y = Z, label = variable), 
+            size = 3.5, color = '#D22B2B', vjust = 1.5) 
   
 biplot_pc1v3 <- biplot_pc1v3 +
-  geom_point(data = pca.data.summary, aes(x = X, y = Z, color = Cluster), alpha = 0.6) +
-  scale_color_manual(values = cluster_colors)
+  geom_point(data = pca.data.summary, aes(x = X, y = Z, color = Cluster), alpha = 0.2) +
+  scale_color_manual(values = cluster_colors) +
+  geom_segment(data = pca.loadings, aes(x = 0, y = 0, xend = X, yend = Z), 
+               arrow = arrow(length = unit(0.2, 'cm')), color = '#D22B2B') +
+  geom_text(data = pca.loadings, aes(x = X, y = Z, label = variable), 
+            size = 3.5, color = '#D22B2B', vjust = 1.5) 
+
 grid.arrange(biplot_pc1v2, biplot_pc2v3, biplot_pc1v3, ncol = 3)
 
 pca_scaled <- as.data.frame(pca_scaled)
@@ -338,20 +352,7 @@ pca_plot_threeD <- plot_ly() %>%
 
 pca_plot_threeD
 
-#--------------------------
-# # Hierarchical clustering
-# # par(mfrow = c(1,1))
-# hcpc <- HCPC(pca.data, graph = FALSE) # Hierarchical clustering on principal components
-# 
-# # #hcpc output is a list with several components: $call is the call to the function
-# # # $desc is the description of the clustering, $data is the data used for clustering,
-# # # $clust is the clustering results
-# hcpc$call$t$nb.clust # Number of clusters
-# plot(hcpc, choice = "tree") # Plot the dendrogram
-# plot(hcpc, choice = "map") # Plot the map of the clustering
-# plot(hcpc, choice = "3D.map") # Plot the 3D map of the clustering
-#--------------------------
-
+# Silhouette Scores
 sil_scores <- numeric()
 
 for (k in 2:length(cluster_num)) {
@@ -368,6 +369,9 @@ for (k in 2:length(cluster_num)) {
 plot(2:10, sil_scores, type = "b", 
      xlab = "Number of Clusters", ylab = "Average Silhouette Score", 
      main = "Silhouette Scores for Different Cluster Numbers")
+
+points(optimal_k, sil_scores[optimal_k - 1], col = '#D22B2B', pch = 19, cex = 2)  # Highlight the optimal k
+text(optimal_k, sil_scores[optimal_k -1], labels = paste('Optimal k =', optimal_k), pos = 3, col = '#D22B2B')
 
 # Use hierarchical methods to compare between methods, number of clusters and linkage types
 # Define linkage methods and distance metrics
@@ -409,4 +413,35 @@ for (dist_method in distance_methods) {
 sil_results_df$s_score <- round(sil_results_df$s_score, 4)
 sil_results_df <- sil_results_df[order(-sil_results_df$s_score), ]
 sil_results_df
+
+# Hierarchical clustering
+par(mfrow = c(1,1))
+pca_reduced <- as.data.frame(pca_reduced)
+hcpc <- HCPC(pca_reduced, nb.clust = 3, graph = TRUE) # Hierarchical clustering on principal components
+biplot_pc1v2
+
+# Analyzing the clusters
+
+kmeans_result <- kmeans(pca_reduced, centers = 3, nstart = 50)
+
+diab_data_w_clusters <- scale(select(diabetes_data, -c(Outcome))) # Scale the continuous variables
+non_outlier_rows <- apply(diab_data_w_clusters, 1, function(x) all(abs(x) < 3)) # Identify non-outliers
+
+diab_data_w_clusters <- diabetes_data[non_outlier_rows, ] 
+diab_data_w_clusters <- select(diab_data_w_clusters, -c(Outcome))
+diab_data_w_clusters$Cluster <- as.factor(kmeans_result$cluster)
+
+summary_stats <- diab_data_w_clusters %>%
+  group_by(Cluster) %>%
+  summarise(across(where(is.numeric), list(mean = mean, median = median, var = var), .names = '{.col}_{.fn}')) %>%
+  pivot_longer(cols = -Cluster, names_to = c('variable', '.value'), names_sep = '_') %>%
+  arrange(variable, Cluster)
+
+print(summary_stats, n=Inf)
+
+diab_data_w_clusters
+
+
+
+
 
